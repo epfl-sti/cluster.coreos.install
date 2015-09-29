@@ -352,9 +352,14 @@ while [ -n "$1" ]; do case "$1" in
         # For debug
         cat_cloud_config
         shift ;;
+    test-install-zfs)
+        install_zfs
+        shift ;;
+
     with-core-password)
         WITH_CORE_PASSWORD=1
         shift ;;
+
     install)
         case "$2" in
             --*) install "$2" ; shift ; shift ;;

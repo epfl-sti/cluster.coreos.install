@@ -339,7 +339,7 @@ environment     = production
 server          = $PUPPET_CONF_SERVER
 PUPPETCONF
  
-    set +e
+    set +e -x
     docker rm puppet-bootstrap || true
     eval "docker run --name puppet-bootstrap $(puppet_in_docker_args --bootstraptime) agent -t"
     exitcode=$?
@@ -348,7 +348,7 @@ PUPPETCONF
         *) echo >&2 "Puppet agent in Docker exited with status $exitcode"
            exit $exitcode ;;
     esac
-    set -e
+    set -e -x
  
     # Create this file before next reboot to simplify post-reboot bootstrap
     mkdir -p /mnt/etc/modules-load.d

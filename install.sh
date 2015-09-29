@@ -265,6 +265,10 @@ puppet_in_docker_args() {
           -e FACTER_install_sh_version="$(install_sh_version)"
 ARGS
 
+    if [ -n "$WITH_ZFS" ]; then
+        echo '-e FACTER_has_zfs=1'
+    fi
+
     if [ -n "$bootstraptime" ]; then
         # Make /media/staging available (the path where the to-be-rebooted-into
         # version of CoreOS is being staged, I guess)

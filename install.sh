@@ -173,6 +173,7 @@ cat <<NETWORK_CONFIG
             content: |
               [Service]
               Type=oneshot
+              ExecStart=/usr/bin/ip link set $COREOS_PRIMARY_NETWORK_INTERFACE down
               ExecStart=/usr/bin/ip addr flush dev $COREOS_PRIMARY_NETWORK_INTERFACE
           - name: systemd-networkd.service
             command: start

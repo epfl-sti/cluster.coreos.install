@@ -257,6 +257,8 @@ install_and_reboot() {
     /usr/bin/coreos-install -C stable -d "$COREOS_INSTALL_TO_DISK" -c /home/core/cloud-config.yml -b "$COREOS_INSTALL_URL"
     # TODO: do some ZFS here!
 
+    mount LABEL=ROOT /mnt
+    mount LABEL=USR-A /mnt/usr -o ro
        
     # Load modules right away, so that Puppet may tweak IPMI
     modprobe ipmi_si

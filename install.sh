@@ -16,6 +16,9 @@
 #  COREOS_PRIMARY_NETWORK_INTERFACE
 #    The CoreOS-style name of the primary network interface, e.g.
 #    enp1s0f0 or some such
+#  COREOS_HASHED_CORE_PASSWORD
+#    The hashed password handed out by Foreman. Only use if the
+#    "with-core-password" verb is passed on the command line.
 #  COREOS_INSTALL_TO_DISK
 #    The disk that the install-and-reboot verb should install to (/dev/sda by
 #    default)
@@ -48,6 +51,9 @@ version_receipts() {
     # expand $Id$. TODO: fix that
     echo "install.sh $Id$"
 }
+
+# Set by a verb on the command line
+WITH_CORE_PASSWORD=
 
 cat_cloud_config() {
     cat <<CLOUD_CONFIG_PREAMBLE
@@ -193,6 +199,15 @@ NETWORK_CONFIG
 
 # Post-bootstrap, SSH keys are managed with Puppet.
 
+if [ -n "$WITH_CORE_PASSWORD" ]; then
+    cat <<USERS
+users:
+  - name: core
+    passwd: $COREOS_HASHED_CORE_PASSWORD
+    lock-passwd: false
+USERS
+fi
+
 }
 
 install_sh_version() {
@@ -328,6 +343,9 @@ while [ -n "$1" ]; do case "$1" in
     cat-cloud-config)
         # For debug
         cat_cloud_config
+        shift ;;
+    with-core-password)
+        WITH_CORE_PASSWORD=1
         shift ;;
     install)
         case "$2" in

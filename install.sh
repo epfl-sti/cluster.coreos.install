@@ -209,6 +209,8 @@ puppet_in_docker_args() {
             ;;
     esac
 
+    install_sh_version="$(cd $(dirname "$0") && git log -1 --format=%cd -- install.sh)"
+
 (
     cat <<ARGS
           --net=host
@@ -228,7 +230,7 @@ puppet_in_docker_args() {
           -v $MNT/etc/puppet/puppet.conf:/etc/puppet/puppet.conf:ro
           -v /dev/ipmi0:/dev/ipmi0
           -e FACTER_ipaddress=$COREOS_PRIVATE_IPV4
-
+          -e FACTER_install_sh_version=$install_sh_version
 ARGS
     if [ -n "$bootstraptime" ]; then
         # Make /media/staging available (the path where the to-be-rebooted-into

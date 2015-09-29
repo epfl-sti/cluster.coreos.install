@@ -204,7 +204,6 @@ if [ -n "$WITH_CORE_PASSWORD" ]; then
 users:
   - name: core
     passwd: $COREOS_HASHED_CORE_PASSWORD
-    lock-passwd: false
 USERS
 fi
 

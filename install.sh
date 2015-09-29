@@ -45,13 +45,6 @@ set -e -x
 : ${COREOS_INSTALL_TO_DISK:=/dev/sda}
 : ${COREOS_INSTALL_URL:=http://stable.release.core-os.net/amd64-usr}
 
-version_receipts() {
-    echo "provision.erb $PROVISION_GIT_ID"
-    # Dang - That doesn't help, because raw.githubusercontent.com doesn't
-    # expand $Id$. TODO: fix that
-    echo "install.sh $Id$"
-}
-
 # Set by flags on the command line
 WITH_CORE_PASSWORD=
 WITH_ZFS=
@@ -268,8 +261,10 @@ puppet_in_docker_args() {
           -v $MNT/etc/puppet/puppet.conf:/etc/puppet/puppet.conf:ro
           -v /dev/ipmi0:/dev/ipmi0
           -e FACTER_ipaddress=$COREOS_PRIVATE_IPV4
+          -e FACTER_provision_git_id="$PROVISION_GIT_ID"
           -e FACTER_install_sh_version="$(install_sh_version)"
 ARGS
+
     if [ -n "$bootstraptime" ]; then
         # Make /media/staging available (the path where the to-be-rebooted-into
         # version of CoreOS is being staged, I guess)
@@ -356,8 +351,6 @@ PUPPETCONF
 ipmi_si
 ipmi_devintf
 IPMI_CONF
-
-    version_receipts > /mnt/etc/coreos/epflsti-versions
 
     copy_install_sh
 

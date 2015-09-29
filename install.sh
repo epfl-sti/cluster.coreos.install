@@ -261,7 +261,8 @@ ARGS
 }
 
 install_zfs() {
-    cd /home/core
+    mkdir -p /mnt/opt/zfs || true
+    cd /mnt/opt/zfs
     # https://github.com/ClusterHQ/flocker/blob/zfs-on-coreos-tutorial-667/docs/experimental/zfs-on-coreos.rst
     wget https://storage.googleapis.com/experiments-clusterhq/zfs-coreos/coreos-gentoo-prefix-glibc-wip.tar.xz{.sig,}
     gpg --recv-keys 'FD27D483' --keyserver hkp://subkeys.pgp.net

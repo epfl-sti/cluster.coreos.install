@@ -245,7 +245,21 @@ ARGS
 ) | tr '\n' ' '
 }
 
+install_zfs() {
+    cd /home/core
+    # https://github.com/ClusterHQ/flocker/blob/zfs-on-coreos-tutorial-667/docs/experimental/zfs-on-coreos.rst
+    wget https://storage.googleapis.com/experiments-clusterhq/zfs-coreos/coreos-gentoo-prefix-glibc-wip.tar.xz{.sig,}
+    gpg --recv-keys 'FD27D483' --keyserver hkp://subkeys.pgp.net
+    gpg --verify coreos-gentoo-prefix-glibc-wip.tar.xz{.sig,}
+    tar xf coreos-gentoo-prefix-glibc-wip.tar.xz
+
+    exit 1  # XXX
+}
+
 install_and_reboot() {
+    local has_zfs
+    if [ "$1" == "--zfs" ]; then has_zfs=1; fi
+
     cat_cloud_config > /home/core/cloud-config.yml
     chown core:core /home/core/cloud-config.yml
     chmod 600 /home/core/cloud-config.yml
@@ -259,6 +273,8 @@ install_and_reboot() {
 
     mount LABEL=ROOT /mnt
     mount LABEL=USR-A /mnt/usr -o ro
+
+    if [ -n "$has_zfs" ]; then install_zfs; fi
        
     # Load modules right away, so that Puppet may tweak IPMI
     modprobe ipmi_si
@@ -316,5 +332,8 @@ while [ -n "$1" ]; do case "$1" in
         shift ;;
     install-and-reboot)
         install_and_reboot
+        shift ;;
+    install-zfs-and-reboot)
+        install_and_reboot --zfs
         shift ;;
 esac; done

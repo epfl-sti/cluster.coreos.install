@@ -190,7 +190,7 @@ write_files:
  
 NETWORK_CONFIG
 
-# Post-bootstrap SSH keys are managed with Puppet.
+# Post-bootstrap, SSH keys are managed with Puppet.
 
 }
 

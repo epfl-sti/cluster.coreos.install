@@ -252,8 +252,6 @@ install_zfs() {
     gpg --recv-keys 'FD27D483' --keyserver hkp://subkeys.pgp.net
     gpg --verify coreos-gentoo-prefix-glibc-wip.tar.xz{.sig,}
     tar xf coreos-gentoo-prefix-glibc-wip.tar.xz
-
-    exit 1  # XXX
 }
 
 install() {

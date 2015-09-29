@@ -25,7 +25,7 @@
 #  PROVISIONING_DONE_URL
 #    The URL to wget to to signal Foreman that the provisioning phase is complete
 #  PROVISION_GIT_ID
-#    The $Id$ of coreos/provision.erb at the time the install was run
+#    The $Id Git tag of coreos/provision.erb at the time the install was run
 #  PUPPET_CONF_CA_SERVER
 #  PUPPET_CONF_SERVER
 #  GATEWAY_VIP
@@ -41,6 +41,11 @@ set -e -x
 
 : ${COREOS_INSTALL_TO_DISK:=/dev/sda}
 : ${COREOS_INSTALL_URL:=http://stable.release.core-os.net/amd64-usr}
+
+version_receipts() {
+    echo "provision.erb $PROVISION_GIT_ID"
+    echo "install.sh $Id$"
+}
 
 cat_cloud_config() {
     cat <<CLOUD_CONFIG_PREAMBLE
@@ -188,19 +193,18 @@ NETWORK_CONFIG
 }
 
 
-install_done() {
-    [ -d "/etc/coreos" ]
-}
-
 puppet_in_docker_args() {
     local MNT ROOT
-    if install_done; then 
-        ROOT=/
-        MNT=
-    else 
-        ROOT=/mnt
-        MNT=/mnt
-    fi
+    case "$1" in
+        --bootstraptime)
+            ROOT=/mnt
+            MNT=/mnt
+            ;;
+        *)
+            ROOT=/
+            MNT=
+            ;;
+    esac
 
 (
     cat <<ARGS
@@ -265,7 +269,7 @@ server          = $PUPPET_CONF_SERVER
 PUPPETCONF
  
     set +e
-    docker run --name puppet-bootstrap $(puppet_in_docker_args) agent -t
+    docker run --name puppet-bootstrap $(puppet_in_docker_args --bootstraptime) agent -t
     exitcode=$?
     case "$exitcode" in
         0|2) : ;;
@@ -281,7 +285,9 @@ PUPPETCONF
 ipmi_si
 ipmi_devintf
 IPMI_CONF
-      
+
+    version_receipts > /mnt/etc/coreos/epflsti-versions
+
     # All done
     umount /mnt/usr
     umount /mnt

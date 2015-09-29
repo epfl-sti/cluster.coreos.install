@@ -196,11 +196,12 @@ NETWORK_CONFIG
 
 
 puppet_in_docker_args() {
-    local MNT ROOT
+    local MNT ROOT bootstraptime
     case "$1" in
         --bootstraptime)
             ROOT=/mnt
             MNT=/mnt
+            bootstraptime=1
             ;;
         *)
             ROOT=/
@@ -229,7 +230,7 @@ puppet_in_docker_args() {
           -e FACTER_ipaddress=$COREOS_PRIVATE_IPV4
 
 ARGS
-    if install_done; then
+    if [ -n "$bootstraptime" ]; then
         # Make /media/staging available (the path where the to-be-rebooted-into
         # version of CoreOS is being staged, I guess)
         echo "-v /media/staging:/opt/staging"

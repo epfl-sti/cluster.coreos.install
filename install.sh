@@ -256,7 +256,7 @@ install_zfs() {
     exit 1  # XXX
 }
 
-install_and_reboot() {
+install() {
     local has_zfs
     if [ "$1" == "--zfs" ]; then has_zfs=1; fi
 
@@ -318,7 +318,6 @@ IPMI_CONF
     umount /mnt/usr
     umount /mnt
     wget -q -O /dev/null --no-check-certificate $PROVISIONING_DONE_URL
-    reboot
 }
 
 while [ -n "$1" ]; do case "$1" in
@@ -330,10 +329,15 @@ while [ -n "$1" ]; do case "$1" in
         # For debug
         cat_cloud_config
         shift ;;
+    install)
+        install
+        shift ;;
     install-and-reboot)
-        install_and_reboot
+        install
+        reboot
         shift ;;
     install-zfs-and-reboot)
-        install_and_reboot --zfs
+        install --zfs
+        reboot
         shift ;;
 esac; done

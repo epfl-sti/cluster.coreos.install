@@ -44,6 +44,8 @@ set -e -x
 
 version_receipts() {
     echo "provision.erb $PROVISION_GIT_ID"
+    # Dang - That doesn't help, because raw.githubusercontent.com doesn't
+    # expand $Id$. TODO: fix that
     echo "install.sh $Id$"
 }
 

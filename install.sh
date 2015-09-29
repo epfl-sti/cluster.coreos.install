@@ -267,7 +267,6 @@ install() {
     vgs --noheadings 2>/dev/null | awk '{ print $1}' | xargs -n 1 vgremove -f || true
 
     /usr/bin/coreos-install -C stable -d "$COREOS_INSTALL_TO_DISK" -c /home/core/cloud-config.yml -b "$COREOS_INSTALL_URL"
-    # TODO: do some ZFS here!
 
     mount LABEL=ROOT /mnt
     mount LABEL=USR-A /mnt/usr -o ro

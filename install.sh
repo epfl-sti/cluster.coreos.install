@@ -334,12 +334,7 @@ while [ -n "$1" ]; do case "$1" in
             --*) install "$2" ; shift ; shift ;;
             *) install ; shift ;;
         esac ;;
-    install-and-reboot)
-        install
-        reboot
-        shift ;;
-    install-zfs-and-reboot)
-        install --zfs
+    reboot)
         reboot
         shift ;;
 esac; done

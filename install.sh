@@ -273,13 +273,13 @@ install_zfs() {
 }
 
 mount_mnt() {
-    mountpoint /mnt 2>/dev/null || mount LABEL=ROOT /mnt
-    mountpoint /mnt/usr 2>/dev/null || mount LABEL=USR-A /mnt/usr -o ro
+    if ! mountpoint /mnt >/dev/null 2>&1 ; then mount LABEL=ROOT /mnt; fi
+    if ! mountpoint /mnt/usr >/dev/null 2>&1; then mount LABEL=USR-A /mnt/usr -o ro; fi
 }
 
 umount_mnt() {
-    mountpoint /mnt/usr 2>/dev/null && umount /mnt/usr
-    mountpoint /mnt 2>/dev/null && umount /mnt
+    if mountpoint /mnt/usr >/dev/null 2>&1; then umount /mnt/usr; fi
+    if mountpoint /mnt >/dev/null 2>&1; then umount /mnt; fi
 }
 
 install() {

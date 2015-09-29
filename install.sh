@@ -52,8 +52,9 @@ version_receipts() {
     echo "install.sh $Id$"
 }
 
-# Set by a verb on the command line
+# Set by flags on the command line
 WITH_CORE_PASSWORD=
+WITH_ZFS=
 
 cat_cloud_config() {
     cat <<CLOUD_CONFIG_PREAMBLE
@@ -185,6 +186,24 @@ cat <<NETWORK_CONFIG
               ExecStart=/usr/bin/ip addr flush dev $COREOS_PRIMARY_NETWORK_INTERFACE
           - name: systemd-networkd.service
             command: start
+NETWORK_CONFIG
+
+if [ -n "$WITH_ZFS" ]; then
+    # Installing ZFS needs to be done after reboot, or we won't have enough
+    # disk space.
+    cat <<WITH_ZFS_UNIT
+          - name: postinstall-zfs.service
+            runtime: no
+            command: start
+            content: |
+              [Unit]
+              Description=Install ZFS dependencies
+              [Service]
+              ExecStart=/home/core/cluster.coreos.install/install.sh postinstall-zfs
+WITH_ZFS_UNIT
+fi
+
+cat <<WRITE_FILES
 write_files:
     - path: /etc/systemd/network/40-ethbr4-nogateway.opt-network
       content: |
@@ -196,8 +215,7 @@ write_files:
         [Network]
         Address=$COREOS_PRIVATE_IPV4/24
         DNS=$DNS_VIP
- 
-NETWORK_CONFIG
+ WRITE_FILES
 
 # Post-bootstrap, SSH keys are managed with Puppet.
 
@@ -262,9 +280,8 @@ ARGS
 ) | tr '\n' ' '
 }
 
-install_zfs() {
-    mkdir -p /mnt/opt/zfs || true
-    cd /mnt/opt/zfs
+postinstall_zfs() {
+    cd /home/core
     # https://github.com/ClusterHQ/flocker/blob/zfs-on-coreos-tutorial-667/docs/experimental/zfs-on-coreos.rst
     wget https://storage.googleapis.com/experiments-clusterhq/zfs-coreos/coreos-gentoo-prefix-glibc-wip.tar.xz{.sig,} ||true
     gpg  --keyserver hkp://subkeys.pgp.net --recv-keys 'FD27D483' 
@@ -284,9 +301,13 @@ umount_mnt() {
     if mountpoint /mnt >/dev/null 2>&1; then umount /mnt; fi
 }
 
+copy_install_sh() {
+    (cd /home/core; tar clf - cluster.coreos.install) | (
+       cd /mnt/home/core; tar xpvf -)
+}
+
 install() {
-    local has_zfs
-    if [ "$1" == "--zfs" ]; then has_zfs=1; fi
+    if [ "$1" == "--zfs" ]; then WITH_ZFS=1; fi
 
     cat_cloud_config > /home/core/cloud-config.yml
     chown core:core /home/core/cloud-config.yml
@@ -300,8 +321,6 @@ install() {
 
     mount_mnt
 
-    if [ -n "$has_zfs" ]; then install_zfs; fi
-       
     # Load modules right away, so that Puppet may tweak IPMI
     modprobe ipmi_si
     modprobe ipmi_devintf
@@ -340,6 +359,8 @@ IPMI_CONF
 
     version_receipts > /mnt/etc/coreos/epflsti-versions
 
+    copy_install_sh
+
     # All done
     umount_mnt
     wget -q -O /dev/null --no-check-certificate $PROVISIONING_DONE_URL
@@ -354,19 +375,10 @@ while [ -n "$1" ]; do case "$1" in
         # For debug
         cat_cloud_config
         shift ;;
-    test-install-zfs)
-        install_zfs
-        shift ;;
 
     with-core-password)
         WITH_CORE_PASSWORD=1
         shift ;;
-
-    install)
-        case "$2" in
-            --*) install "$2" ; shift ; shift ;;
-            *) install ; shift ;;
-        esac ;;
     mount)
         mount_mnt
         shift ;;
@@ -375,6 +387,16 @@ while [ -n "$1" ]; do case "$1" in
         shift ;;
     reboot)
         reboot
+        shift ;;
+
+    # Production verbs
+    install)
+        case "$2" in
+            --*) install "$2" ; shift ; shift ;;
+            *) install ; shift ;;
+        esac ;;
+    postinstall-zfs)
+        postinstall_zfs
         shift ;;
     *)
         set +x

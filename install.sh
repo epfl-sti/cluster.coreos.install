@@ -176,17 +176,17 @@ cat <<NETWORK_CONFIG
               ExecStart=/usr/bin/ip addr flush dev $COREOS_PRIMARY_NETWORK_INTERFACE
           - name: systemd-networkd.service
             command: start
-  write_files:
-      - path: /etc/systemd/network/40-ethbr4-nogateway.opt-network
-        content: |
-          # Network configuration for ethbr4 without a default route.
-          # Overrides 50-ethbr4-internal.network on gateway nodes.
-          [Match]
-          Name=ethbr4
+write_files:
+    - path: /etc/systemd/network/40-ethbr4-nogateway.opt-network
+      content: |
+        # Network configuration for ethbr4 without a default route.
+        # Overrides 50-ethbr4-internal.network on gateway nodes.
+        [Match]
+        Name=ethbr4
 
-          [Network]
-          Address=$COREOS_PRIVATE_IPV4/24
-          DNS=$DNS_VIP
+        [Network]
+        Address=$COREOS_PRIVATE_IPV4/24
+        DNS=$DNS_VIP
  
 NETWORK_CONFIG
 

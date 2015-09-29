@@ -194,7 +194,12 @@ NETWORK_CONFIG
 
 }
 
+install_sh_version() {
+    (cd "$(dirname "$0")" && git log -1 --format=%cd -- install.sh)
+}
 
+# Prints to stdout a *shell-escaped* snippet of the docker exec command line
+# to run Puppet
 puppet_in_docker_args() {
     local MNT ROOT bootstraptime
     case "$1" in
@@ -208,8 +213,6 @@ puppet_in_docker_args() {
             MNT=
             ;;
     esac
-
-    install_sh_version="$(cd $(dirname "$0") && git log -1 --format=%cd -- install.sh)"
 
 (
     cat <<ARGS
@@ -230,7 +233,7 @@ puppet_in_docker_args() {
           -v $MNT/etc/puppet/puppet.conf:/etc/puppet/puppet.conf:ro
           -v /dev/ipmi0:/dev/ipmi0
           -e FACTER_ipaddress=$COREOS_PRIVATE_IPV4
-          -e FACTER_install_sh_version=$install_sh_version
+          -e FACTER_install_sh_version="$(install_sh_version)"
 ARGS
     if [ -n "$bootstraptime" ]; then
         # Make /media/staging available (the path where the to-be-rebooted-into
@@ -301,6 +304,10 @@ IPMI_CONF
 }
 
 case "$1" in
+    test-puppet-in-docker-args)
+        # For debug
+        eval "for i in $(puppet_in_docker_args); do echo ___ \$i ___; done"
+        ;;
     cat-cloud-config)
         # For debug
         cat_cloud_config;;

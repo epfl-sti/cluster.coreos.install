@@ -337,4 +337,9 @@ while [ -n "$1" ]; do case "$1" in
     reboot)
         reboot
         shift ;;
+    *)
+        set +x
+        echo >&2 "Unknown verb: $1"
+        exit 2
+        ;;
 esac; done

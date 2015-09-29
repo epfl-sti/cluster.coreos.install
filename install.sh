@@ -303,14 +303,16 @@ IPMI_CONF
     reboot
 }
 
-case "$1" in
+while [ -n "$1" ]; do case "$1" in
     test-puppet-in-docker-args)
         # For debug
         eval "for i in $(puppet_in_docker_args); do echo ___ \$i ___; done"
-        ;;
+        shift ;;
     cat-cloud-config)
         # For debug
-        cat_cloud_config;;
+        cat_cloud_config
+        shift ;;
     install-and-reboot)
-        install_and_reboot;;
-esac
+        install_and_reboot
+        shift ;;
+esac; done

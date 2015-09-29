@@ -272,12 +272,12 @@ install_zfs() {
     # TODO: more!
 }
 
-mount() {
+mount_mnt() {
     mountpoint /mnt 2>/dev/null || mount LABEL=ROOT /mnt
     mountpoint /mnt/usr 2>/dev/null || mount LABEL=USR-A /mnt/usr -o ro
 }
 
-umount() {
+umount_mnt() {
     mountpoint /mnt/usr 2>/dev/null && umount /mnt/usr
     mountpoint /mnt 2>/dev/null && umount /mnt
 }
@@ -296,7 +296,7 @@ install() {
 
     /usr/bin/coreos-install -C stable -d "$COREOS_INSTALL_TO_DISK" -c /home/core/cloud-config.yml -b "$COREOS_INSTALL_URL"
 
-    mount
+    mount_mnt
 
     if [ -n "$has_zfs" ]; then install_zfs; fi
        
@@ -339,7 +339,7 @@ IPMI_CONF
     version_receipts > /mnt/etc/coreos/epflsti-versions
 
     # All done
-    umount
+    umount_mnt
     wget -q -O /dev/null --no-check-certificate $PROVISIONING_DONE_URL
 }
 
@@ -361,10 +361,10 @@ while [ -n "$1" ]; do case "$1" in
             *) install ; shift ;;
         esac ;;
     mount)
-        mount
+        mount_mnt
         shift ;;
     umount)
-        umount
+        umount_mnt
         shift ;;
     reboot)
         reboot

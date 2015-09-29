@@ -215,7 +215,7 @@ write_files:
         [Network]
         Address=$COREOS_PRIVATE_IPV4/24
         DNS=$DNS_VIP
- WRITE_FILES
+WRITE_FILES
 
 # Post-bootstrap, SSH keys are managed with Puppet.
 

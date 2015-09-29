@@ -330,8 +330,10 @@ while [ -n "$1" ]; do case "$1" in
         cat_cloud_config
         shift ;;
     install)
-        install
-        shift ;;
+        case "$2" in
+            --*) install "$2" ; shift ; shift ;;
+            *) install ; shift ;;
+        esac ;;
     install-and-reboot)
         install
         reboot

@@ -56,7 +56,6 @@ hostname: $COREOS_FQDN
 coreos:
   fleet:
     public-ip: $COREOS_PRIVATE_IPV4
-  units:
 CLOUD_CONFIG_PREAMBLE
 
 # etcd and the fleet metadata are configured by Puppet, yet started by
@@ -65,6 +64,7 @@ CLOUD_CONFIG_PREAMBLE
 # starts unconfigured; it just bails out.)
 
 cat <<BASE_UNITS
+  units:
           - name: etcd2.service
             command: start
           - name: fleet.service

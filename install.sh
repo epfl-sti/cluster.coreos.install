@@ -60,6 +60,8 @@ cat_cloud_config() {
 #cloud-config
 hostname: $COREOS_FQDN
 coreos:
+  update:
+    reboot-strategy: off
   fleet:
     public-ip: $COREOS_PRIVATE_IPV4
 CLOUD_CONFIG_PREAMBLE

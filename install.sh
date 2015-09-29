@@ -340,6 +340,7 @@ server          = $PUPPET_CONF_SERVER
 PUPPETCONF
  
     set +e
+    docker rm puppet-bootstrap || true
     eval "docker run --name puppet-bootstrap $(puppet_in_docker_args --bootstraptime) agent -t"
     exitcode=$?
     case "$exitcode" in

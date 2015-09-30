@@ -128,18 +128,6 @@ cat <<PUPPET_BEFORE_REBOOT
               WantedBy=multi-user.target
 PUPPET_BEFORE_REBOOT
 
-# I'm pretty sure this is useless:
-#           - name: puppet-bootstrap.service
-#             runtime: true
-#             content: |
-#               [Unit]
-#               Description=Ensure Puppet runs once before reboot
-#               After=puppet.service system-networkd.service
-#               Requires=puppet.service
-#               [Service]
-#               Type=oneshot
-#               ExecStart=/usr/bin/docker exec -it puppet.service puppet agent -t
-
 cat <<NETWORK_CONFIG
 
           - name: ethbr4.netdev

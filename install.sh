@@ -243,8 +243,9 @@ fi
 
 }
 
+#http://git-scm.com/docs/pretty-formats
 install_sh_version() {
-    (cd "$(dirname "$0")" && git log -1 --format=%cd -- install.sh)
+    (cd "$(dirname "$0")" && git log -1 --format=%ci -- install.sh)
 }
 
 # Prints to stdout a *shell-escaped* snippet of the docker exec command line

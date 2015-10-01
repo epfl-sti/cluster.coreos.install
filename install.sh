@@ -202,6 +202,30 @@ write_files:
       content: |
         TOOLBOX_DOCKER_IMAGE=epflsti/cluster.coreos.toolbox
         TOOLBOX_DOCKER_TAG=latest
+    # Create a default bash_history - productivity hack
+    - path: /home/core/.bash_history
+      owner: core:core
+      content: |
+        fleetctl list-units
+        fleetctl list-machines
+        etcdctl member list
+        etcdctl cluster-health
+        journalctl -xe
+        journalctl -l
+        systemctl list-unit-files
+        systemctl cat puppet.service
+    # fleetsort script - productivity hack
+    - path: /home/core/.bash_history
+      owner: core:core
+      permissions: '0755'
+      content: |
+        #!/bin/bash
+        fleetsort() {
+          fleetctl list-machines | sort -n -t . -k 7,7
+          TOTAL=$(fleetctl list-machines -no-legend | wc -l)
+          echo -e "\n         Congratulations officer, your fleet have $TOTAL members !"
+        }
+        fleetsort
 WRITE_FILES
 
 # Post-bootstrap, SSH keys are managed with Puppet.

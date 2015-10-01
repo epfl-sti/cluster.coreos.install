@@ -82,12 +82,12 @@ cat <<DOCKER_UNIT_ON_STEROIDS
             content: |
               [Unit]
               Description=Docker Socket for the API
-              
+
               [Socket]
               ListenStream=2375
               BindIPv6Only=both
               Service=docker.service
-              
+
               [Install]
               WantedBy=sockets.target
           - name: enable-docker-tcp.service
@@ -95,7 +95,7 @@ cat <<DOCKER_UNIT_ON_STEROIDS
             content: |
               [Unit]
               Description=Enable the Docker Socket for the API
-              
+
               [Service]
               Type=oneshot
               ExecStart=/usr/bin/systemctl enable docker-tcp.socket
@@ -117,13 +117,13 @@ cat <<PUPPET_BEFORE_REBOOT
               Description=Puppet in Docker
               After=docker.service
               Requires=docker.service
-              
+
               [Service]
               ExecStartPre=/bin/bash -c '/usr/bin/docker inspect %n &> /dev/null && /usr/bin/docker rm %n || :'
               ExecStart=/usr/bin/docker run --name %n $puppet_in_docker_args agent --no-daemonize --logdest=console --environment=production
               RestartSec=5s
               Restart=always
-            
+
               [Install]
               WantedBy=multi-user.target
 PUPPET_BEFORE_REBOOT
@@ -142,7 +142,7 @@ cat <<NETWORK_CONFIG
               # symlink exists.
               [Match]
               Name=ethbr4
- 
+
               [Network]
               Address=$COREOS_PRIVATE_IPV4/24
               Gateway=$GATEWAY_VIP
@@ -151,7 +151,7 @@ cat <<NETWORK_CONFIG
             content: |
               [Match]
               Name=$COREOS_PRIMARY_NETWORK_INTERFACE
- 
+
               [Network]
               DHCP=no
               Bridge=ethbr4
@@ -196,6 +196,12 @@ write_files:
         [Network]
         Address=$COREOS_PRIVATE_IPV4/24
         DNS=$DNS_VIP
+    # Redefine the default toolbox with our epflsti/cluster.coreos.toolbox
+    - path: /home/core/.toolboxrc
+      owner: core
+      content: |
+        TOOLBOX_DOCKER_IMAGE=epflsti/cluster.coreos.toolbox
+        TOOLBOX_DOCKER_TAG=latest
 WRITE_FILES
 
 # Post-bootstrap, SSH keys are managed with Puppet.
@@ -272,7 +278,7 @@ postinstall_zfs() {
     # https://github.com/ClusterHQ/flocker/blob/zfs-on-coreos-tutorial-667/docs/experimental/zfs-on-coreos.rst
     wget https://storage.googleapis.com/experiments-clusterhq/zfs-coreos/coreos-gentoo-prefix-glibc-wip.tar.xz ||true
     wget https://storage.googleapis.com/experiments-clusterhq/zfs-coreos/coreos-gentoo-prefix-glibc-wip.tar.xz.sig
-    gpg --keyserver hkp://subkeys.pgp.net --recv-keys 'FD27D483' 
+    gpg --keyserver hkp://subkeys.pgp.net --recv-keys 'FD27D483'
     gpg --verify coreos-gentoo-prefix-glibc-wip.tar.xz{.sig,}
     tar xf coreos-gentoo-prefix-glibc-wip.tar.xz
 
@@ -312,7 +318,7 @@ install() {
     # Load modules right away, so that Puppet may tweak IPMI
     modprobe ipmi_si
     modprobe ipmi_devintf
- 
+
     mkdir -p /mnt/etc/puppet
     cat >> /mnt/etc/puppet/puppet.conf <<PUPPETCONF
 # My default puppet.conf file
@@ -326,7 +332,7 @@ certname        = $COREOS_FQDN
 environment     = production
 server          = $PUPPET_CONF_SERVER
 PUPPETCONF
- 
+
     set +e -x
     docker rm puppet-bootstrap || true
     eval "docker run --name puppet-bootstrap $(puppet_in_docker_args --bootstraptime) agent -t"
@@ -337,7 +343,7 @@ PUPPETCONF
            exit $exitcode ;;
     esac
     set -e -x
- 
+
     # Create this file before next reboot to simplify post-reboot bootstrap
     mkdir -p /mnt/etc/modules-load.d
     cat >> /mnt/etc/modules-load.d/ipmi.conf <<"IPMI_CONF"

@@ -215,17 +215,20 @@ write_files:
         systemctl list-unit-files
         systemctl cat puppet.service
     # fleetsort script - productivity hack
-    - path: /home/core/.bash_history
+    - path: /home/core/fleetcheck
       owner: core:core
       permissions: '0755'
       content: |
-        #!/bin/bash
-        fleetsort() {
+        fleetcheck() {
           fleetctl list-machines | sort -n -t . -k 7,7
           TOTAL=$(fleetctl list-machines -no-legend | wc -l)
-          echo -e "\n         Congratulations officer, your fleet have $TOTAL members !"
+          echo -e "\n         Congratulations officer, your fleet have $TOTAL members !\n"
+          echo -e "* etcd members are:\n"
+          etcdctl member list | sort -t = -k2
+          echo -e "\n* and cluster's health:\n"
+          etcdctl cluster-health
         }
-        fleetsort
+        fleetcheck
 WRITE_FILES
 
 # Post-bootstrap, SSH keys are managed with Puppet.

@@ -169,6 +169,17 @@ cat <<NETWORK_CONFIG
             command: start
 NETWORK_CONFIG
 
+cat <<DOCKER_PULL_TOOLBOX
+          - name: postinstall-coreos-toolbox.service
+            runtime: no
+            command: start
+            content: |
+              [Unit]
+              Description=Docker pull our CoreOS toolbox
+              [Service]
+              ExecStart=/home/core/cluster.coreos.install/install.sh postinstall-coreos-toolbox
+DOCKER_PULL_TOOLBOX
+
 if [ -n "$WITH_ZFS" ]; then
     # Installing ZFS needs to be done after reboot, or we won't have enough
     # disk space.
@@ -301,6 +312,11 @@ ARGS
 ) | tr '\n' ' '
 }
 
+postinstall_coreos_toolbox() {
+    # prepare the toolbox for direct use
+    docker pull epflsti/cluster.coreos.toolbox
+}
+
 postinstall_zfs() {
     cd /home/core
     # https://github.com/ClusterHQ/flocker/blob/zfs-on-coreos-tutorial-667/docs/experimental/zfs-on-coreos.rst
@@ -416,6 +432,9 @@ while [ -n "$1" ]; do case "$1" in
             --*) install "$2" ; shift ; shift ;;
             *) install ; shift ;;
         esac ;;
+    postinstall-coreos-toolbox)
+        postinstall_coreos_toolbox
+        shift ;;
     postinstall-zfs)
         postinstall_zfs
         shift ;;

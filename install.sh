@@ -225,6 +225,7 @@ write_files:
         journalctl -l
         systemctl list-unit-files
         systemctl cat puppet.service
+        docker exec puppet.service puppet agent -t
     # fleetsort script - productivity hack
     - path: /home/core/fleetcheck
       owner: core:core

@@ -246,7 +246,6 @@ puppet_in_docker_args() {
           -v $MNT/usr/bin/systemctl:/usr/bin/systemctl:ro
           -v $MNT/lib64:/lib64:ro
           -v $MNT/sys/fs/cgroup:/sys/fs/cgroup:ro
-          -v $MNT/etc/puppet/puppet.conf:/etc/puppet/puppet.conf:ro
           -v /dev/ipmi0:/dev/ipmi0
           -e FACTER_ipaddress=$COREOS_PRIVATE_IPV4
           -e FACTER_provision_git_id="$PROVISION_GIT_ID"

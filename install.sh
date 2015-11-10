@@ -82,12 +82,12 @@ cat <<DOCKER_UNIT_ON_STEROIDS
             content: |
               [Unit]
               Description=Docker Socket for the API
-              
+
               [Socket]
               ListenStream=2375
               BindIPv6Only=both
               Service=docker.service
-              
+
               [Install]
               WantedBy=sockets.target
           - name: enable-docker-tcp.service
@@ -95,7 +95,7 @@ cat <<DOCKER_UNIT_ON_STEROIDS
             content: |
               [Unit]
               Description=Enable the Docker Socket for the API
-              
+
               [Service]
               Type=oneshot
               ExecStart=/usr/bin/systemctl enable docker-tcp.socket
@@ -117,13 +117,13 @@ cat <<PUPPET_BEFORE_REBOOT
               Description=Puppet in Docker
               After=docker.service
               Requires=docker.service
-              
+
               [Service]
               ExecStartPre=/bin/bash -c '/usr/bin/docker inspect %n &> /dev/null && /usr/bin/docker rm %n || :'
               ExecStart=/usr/bin/docker run --name %n $puppet_in_docker_args agent --no-daemonize --logdest=console --environment=production
               RestartSec=5s
               Restart=always
-            
+
               [Install]
               WantedBy=multi-user.target
 PUPPET_BEFORE_REBOOT
@@ -142,7 +142,7 @@ cat <<NETWORK_CONFIG
               # symlink exists.
               [Match]
               Name=ethbr4
- 
+
               [Network]
               Address=$COREOS_PRIVATE_IPV4/24
               Gateway=$GATEWAY_VIP
@@ -151,7 +151,7 @@ cat <<NETWORK_CONFIG
             content: |
               [Match]
               Name=$COREOS_PRIMARY_NETWORK_INTERFACE
- 
+
               [Network]
               DHCP=no
               Bridge=ethbr4
@@ -168,6 +168,17 @@ cat <<NETWORK_CONFIG
           - name: systemd-networkd.service
             command: start
 NETWORK_CONFIG
+
+cat <<DOCKER_PULL_TOOLBOX
+          - name: postinstall-coreos-toolbox.service
+            runtime: no
+            command: start
+            content: |
+              [Unit]
+              Description=Docker pull our CoreOS toolbox
+              [Service]
+              ExecStart=/home/core/cluster.coreos.install/install.sh postinstall-coreos-toolbox
+DOCKER_PULL_TOOLBOX
 
 if [ -n "$WITH_ZFS" ]; then
     # Installing ZFS needs to be done after reboot, or we won't have enough
@@ -196,6 +207,40 @@ write_files:
         [Network]
         Address=$COREOS_PRIVATE_IPV4/24
         DNS=$DNS_VIP
+    # Redefine the default toolbox with our epflsti/cluster.coreos.toolbox
+    - path: /home/core/.toolboxrc
+      owner: core
+      content: |
+        TOOLBOX_DOCKER_IMAGE=epflsti/cluster.coreos.toolbox
+        TOOLBOX_DOCKER_TAG=latest
+    # Create a default bash_history - productivity hack
+    - path: /home/core/.bash_history
+      owner: core:core
+      content: |
+        fleetctl list-units
+        fleetctl list-machines
+        etcdctl member list
+        etcdctl cluster-health
+        journalctl -xe
+        journalctl -l
+        systemctl list-unit-files
+        systemctl cat puppet.service
+        docker exec puppet.service puppet agent -t
+    # fleetsort script - productivity hack
+    - path: /home/core/fleetcheck
+      owner: core:core
+      permissions: '0755'
+      content: |
+        fleetcheck() {
+          fleetctl list-machines | sort -n -t . -k 7,7
+          TOTAL=\$(fleetctl list-machines -no-legend | wc -l)
+          echo -e "\n         Congratulations officer, your fleet have $TOTAL members !\n"
+          echo -e "* etcd members are:\n"
+          etcdctl member list | sort -t = -k2
+          echo -e "\n* and cluster's health:\n"
+          etcdctl cluster-health
+        }
+        fleetcheck
 WRITE_FILES
 
 # Post-bootstrap, SSH keys are managed with Puppet.
@@ -210,8 +255,9 @@ fi
 
 }
 
+#http://git-scm.com/docs/pretty-formats
 install_sh_version() {
-    (cd "$(dirname "$0")" && git log -1 --format=%cd -- install.sh)
+    (cd "$(dirname "$0")" && git log -1 --format=%ci -- install.sh)
 }
 
 # Prints to stdout a *shell-escaped* snippet of the docker exec command line
@@ -269,12 +315,17 @@ ARGS
 ) | tr '\n' ' '
 }
 
+postinstall_coreos_toolbox() {
+    # prepare the toolbox for direct use
+    docker pull epflsti/cluster.coreos.toolbox
+}
+
 postinstall_zfs() {
     cd /home/core
     # https://github.com/ClusterHQ/flocker/blob/zfs-on-coreos-tutorial-667/docs/experimental/zfs-on-coreos.rst
     wget https://storage.googleapis.com/experiments-clusterhq/zfs-coreos/coreos-gentoo-prefix-glibc-wip.tar.xz ||true
     wget https://storage.googleapis.com/experiments-clusterhq/zfs-coreos/coreos-gentoo-prefix-glibc-wip.tar.xz.sig
-    gpg --keyserver hkp://subkeys.pgp.net --recv-keys 'FD27D483' 
+    gpg --keyserver hkp://subkeys.pgp.net --recv-keys 'FD27D483'
     gpg --verify coreos-gentoo-prefix-glibc-wip.tar.xz{.sig,}
     tar xf coreos-gentoo-prefix-glibc-wip.tar.xz
 
@@ -314,7 +365,7 @@ install() {
     # Load modules right away, so that Puppet may tweak IPMI
     modprobe ipmi_si
     modprobe ipmi_devintf
- 
+
     mkdir -p /mnt/etc/puppet
     cat >> /mnt/etc/puppet/puppet.conf <<PUPPETCONF
 # My default puppet.conf file
@@ -328,7 +379,7 @@ certname        = $COREOS_FQDN
 environment     = production
 server          = $PUPPET_CONF_SERVER
 PUPPETCONF
- 
+
     set +e -x
     docker rm puppet-bootstrap || true
     eval "docker run --name puppet-bootstrap $(puppet_in_docker_args --bootstraptime) agent -t"
@@ -339,7 +390,7 @@ PUPPETCONF
            exit $exitcode ;;
     esac
     set -e -x
- 
+
     # Create this file before next reboot to simplify post-reboot bootstrap
     mkdir -p /mnt/etc/modules-load.d
     cat >> /mnt/etc/modules-load.d/ipmi.conf <<"IPMI_CONF"
@@ -384,6 +435,9 @@ while [ -n "$1" ]; do case "$1" in
             --*) install "$2" ; shift ; shift ;;
             *) install ; shift ;;
         esac ;;
+    postinstall-coreos-toolbox)
+        postinstall_coreos_toolbox
+        shift ;;
     postinstall-zfs)
         postinstall_zfs
         shift ;;

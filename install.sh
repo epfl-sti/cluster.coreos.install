@@ -352,6 +352,8 @@ install() {
     chown core:core /home/core/cloud-config.yml
     chmod 600 /home/core/cloud-config.yml
 
+    # Needed before messing with partition tables etc:
+    umount_mnt
     # Zap all volume groups, lest coreos-install fail to BLKRRPART
     # (https://github.com/coreos/bugs/issues/152)
     vgs --noheadings 2>/dev/null | awk '{ print $1}' | xargs -n 1 vgremove -f || true

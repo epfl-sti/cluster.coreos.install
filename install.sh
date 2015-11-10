@@ -258,9 +258,12 @@ ARGS
     fi
 
     if [ -n "$bootstraptime" ]; then
+        echo "-e FACTER_lifecycle_stage=bootstrap"
         # Make /media/staging available (the path where the to-be-rebooted-into
         # version of CoreOS is being staged, I guess)
         echo "-v /media/staging:/opt/staging"
+    else
+        echo "-e FACTER_lifecycle_stage=production"
     fi
 
     echo "epflsti/cluster.coreos.puppet:latest"

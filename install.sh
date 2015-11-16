@@ -78,11 +78,6 @@ umount_mnt() {
     if mountpoint /mnt >/dev/null 2>&1; then umount /mnt; fi
 }
 
-copy_install_sh() {
-    (cd /home/core; tar clf - cluster.coreos.install) | (
-       cd /mnt/home/core; tar xpvf -)
-}
-
 install_coreos() {
     # If we are manually re-running a failed install, we want to umount
     # everything before messing with partition tables:

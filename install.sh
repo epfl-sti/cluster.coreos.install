@@ -98,10 +98,6 @@ run_puppet_bootstrap() {
     # TODO: This is still way too complex.
     mount_mnt
 
-    # Load modules right away, so that Puppet may tweak IPMI
-    modprobe ipmi_si
-    modprobe ipmi_devintf
-
     mkdir -p /mnt/etc/puppet
     cat >> /mnt/etc/puppet/puppet.conf <<PUPPETCONF
 # My default puppet.conf file

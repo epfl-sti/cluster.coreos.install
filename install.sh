@@ -124,7 +124,7 @@ PUPPETCONF
            -v /mnt/usr/lib/systemd:/usr/lib/systemd \
            -e FACTER_ipaddress=$COREOS_PRIVATE_IPV4 \
            -e FACTER_lifecycle_stage=bootstrap \
-           -e FACTER_provision_git_id=$PROVISION_GIT_ID \
+           -e FACTER_provision_git_id="$PROVISION_GIT_ID" \
            -e FACTER_install_sh_version="$(install_sh_version)" \
            epflsti/cluster.coreos.puppet:latest \
            agent --test

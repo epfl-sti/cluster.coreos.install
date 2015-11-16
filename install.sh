@@ -116,6 +116,7 @@ PUPPETCONF
     docker run --name puppet-bootstrap.service \
            --net=host --privileged \
            -v /mnt:/opt/root \
+           -v /home/core:/home/core \
            -v /dev:/opt/root/dev \
            -v /mnt/etc/systemd:/etc/systemd \
            -v /mnt/etc/puppet:/etc/puppet \

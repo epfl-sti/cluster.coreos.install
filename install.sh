@@ -89,7 +89,8 @@ install_coreos() {
     umount_mnt
     # Zap all volume groups, lest coreos-install fail to BLKRRPART
     # (https://github.com/coreos/bugs/issues/152)
-    vgs --noheadings 2>/dev/null | awk '{ print $1}' | xargs -n 1 vgremove -f || true
+    vgs --noheadings 2>/dev/null | awk '{ print $1}' | \
+      xargs -n 1 --no-run-if-empty vgremove -f || true
 
     /usr/bin/coreos-install -C stable -d "$COREOS_INSTALL_TO_DISK" -b "$COREOS_INSTALL_URL"
 }

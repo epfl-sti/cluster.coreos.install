@@ -1,24 +1,47 @@
 #!/bin/bash
 #
-# Pre- and post-install CoreOS cluster nodes
+# Pre- and post-install of EPFL-STI CoreOS cluster nodes
 #
-# Usages:
+# Usage examples:
 #
 # install.sh install-and-reboot
 # install.sh postinstall
 #
-# Environment variables:
+# Workflow:
+#
+# 1. This script, along with the full cluster.coreos.install Git
+#    repository, is downloaded as part of the OS provisioning sequence
+#    (e.g. by coreos/provision.erb from GitHub's
+#    epflsti/cluster.foreman), and install.sh is executed with
+#    some configuration passed through environment variables (see below)
+# 2. install.sh installs CoreOS, and does the bare minimum amount of
+#    post-install setup to enable both a successful handover to Puppet
+#    after reboot, and a manual access through SSH in case of failure.
+#    This includes setting up the IPv4 address on a bridge (which
+#    would be perilous from Puppet); and running puppet a first time,
+#    so that the certificate gets signed. Puppet is then responsible
+#    for at least installing itself so that it runs after reboot
+#    (see https://github.com/epfl-sti/cluster.coreos.puppet/blob/master/README.md
+#    for details on this)
+# 3. install.sh does a GET on $PROVISIONING_DONE_URL to let Foreman
+#    know that we are ready for show time. Foreman-side, the host
+#    transitions into "built" state: its pxelinux configuration is
+#    rewritten so that even if the BIOS is still configured to boot
+#    through PXE, the boot will proceed using the local disk. Also,
+#    the Puppet CA autosign entry is removed.
+# 4. The provisioned host reboots into the newly installed CoreOS, and
+#    runs Puppet-in-Docker in steady-state mode.
+#
+# Environment variables (passed by coreos/provision.erb or similar):
 #
 #  COREOS_FQDN
-#    The fully qualified domain name (FQDN) for this node
+#    The fully qualified domain name (FQDN) for this node; default
+#    to $(hostname -f)
 #  COREOS_PRIVATE_IPV4
 #    As it says on the tin
 #  COREOS_PRIMARY_NETWORK_INTERFACE
 #    The CoreOS-style name of the primary network interface, e.g.
 #    enp1s0f0 or some such
-#  COREOS_HASHED_CORE_PASSWORD
-#    The hashed password handed out by Foreman. Only use if the
-#    "with-core-password" verb is passed on the command line.
 #  COREOS_INSTALL_TO_DISK
 #    The disk that the install-and-reboot verb should install to (/dev/sda by
 #    default)
@@ -31,303 +54,18 @@
 #    The $Id Git tag of coreos/provision.erb at the time the install was run
 #  PUPPET_CONF_CA_SERVER
 #  PUPPET_CONF_SERVER
-#  GATEWAY_VIP
-#  DNS_VIP
-#    Extracted from the like-named Foreman global parameters.
-#    PUPPET_CONF_CA_SERVER and PUPPET_CONF_SERVER (e.g.
-#    puppetmaster.ne.cloud.epfl.ch) are used to flesh out
-#    /etc/puppet/puppet.conf. GATEWAY_VIP and
-#    DNS_VIP need to be known before Puppet runs, so as to
-#    download the Puppet image in the first place.
+#    Extracted from the like-named Foreman global parameters,
+#    and used to flesh out /etc/puppet/puppet.conf
 
 set -e -x
 
+: ${COREOS_FQDN:=$(hostname -f)}
 : ${COREOS_INSTALL_TO_DISK:=/dev/sda}
 : ${COREOS_INSTALL_URL:=http://stable.release.core-os.net/amd64-usr}
-
-# Set by flags on the command line
-WITH_CORE_PASSWORD=
-WITH_ZFS=
-
-cat_cloud_config() {
-    cat <<CLOUD_CONFIG_PREAMBLE
-#cloud-config
-hostname: $COREOS_FQDN
-coreos:
-  fleet:
-    public-ip: $COREOS_PRIVATE_IPV4
-CLOUD_CONFIG_PREAMBLE
-
-# etcd and the fleet metadata are configured by Puppet, yet started by
-# the CoreOS boot sequence. This lets quorum members reboot safely if
-# Puppet is unavailable. (Nothing particularly bad happens if etcd2
-# starts unconfigured; it just bails out.)
-
-cat <<BASE_UNITS
-  units:
-          - name: etcd2.service
-            command: start
-          - name: fleet.service
-            command: start
-BASE_UNITS
-
-# https://coreos.com/os/docs/latest/customizing-docker.html
-
-cat <<DOCKER_UNIT_ON_STEROIDS
-          - name: docker-tcp.socket
-            command: start
-            enable: yes
-            content: |
-              [Unit]
-              Description=Docker Socket for the API
-
-              [Socket]
-              ListenStream=2375
-              BindIPv6Only=both
-              Service=docker.service
-
-              [Install]
-              WantedBy=sockets.target
-          - name: enable-docker-tcp.service
-            command: start
-            content: |
-              [Unit]
-              Description=Enable the Docker Socket for the API
-
-              [Service]
-              Type=oneshot
-              ExecStart=/usr/bin/systemctl enable docker-tcp.socket
-          - name: docker.service
-            drop-ins:
-              - name: 10-ipv6.conf
-                content: |
-                  [Service]
-                  Environment="DOCKER_OPTS=--ipv6"
-DOCKER_UNIT_ON_STEROIDS
-
-local puppet_in_docker_args="$(puppet_in_docker_args)"
-
-cat <<PUPPET_BEFORE_REBOOT
-          - name: puppet.service
-            command: start
-            content: |
-              [Unit]
-              Description=Puppet in Docker
-              After=docker.service
-              Requires=docker.service
-
-              [Service]
-              ExecStartPre=/bin/bash -c '/usr/bin/docker inspect %n &> /dev/null && /usr/bin/docker rm %n || :'
-              ExecStart=/usr/bin/docker run --name %n $puppet_in_docker_args agent --no-daemonize --logdest=console --environment=production
-              RestartSec=5s
-              Restart=always
-
-              [Install]
-              WantedBy=multi-user.target
-PUPPET_BEFORE_REBOOT
-
-cat <<NETWORK_CONFIG
-
-          - name: ethbr4.netdev
-            content: |
-              [NetDev]
-              Name=ethbr4
-              Kind=bridge
-          - name: 50-ethbr4-internal.network
-            content: |
-              # Network configuration of ethbr4 for an internal node.
-              # Overridden by 40-ethbr4-nogateway.network when that
-              # symlink exists.
-              [Match]
-              Name=ethbr4
-
-              [Network]
-              Address=$COREOS_PRIVATE_IPV4/24
-              Gateway=$GATEWAY_VIP
-              DNS=$DNS_VIP
-          - name: 00-$COREOS_PRIMARY_NETWORK_INTERFACE.network
-            content: |
-              [Match]
-              Name=$COREOS_PRIMARY_NETWORK_INTERFACE
-
-              [Network]
-              DHCP=no
-              Bridge=ethbr4
-          - name: systemd-networkd.service
-            command: stop
-          - name: cleanup-DHCP-assigned-addresses.service
-            runtime: true
-            command: start
-            content: |
-              [Service]
-              Type=oneshot
-              ExecStart=/usr/bin/ip link set $COREOS_PRIMARY_NETWORK_INTERFACE down
-              ExecStart=/usr/bin/ip addr flush dev $COREOS_PRIMARY_NETWORK_INTERFACE
-          - name: systemd-networkd.service
-            command: start
-NETWORK_CONFIG
-
-cat <<DOCKER_PULL_TOOLBOX
-          - name: postinstall-coreos-toolbox.service
-            runtime: no
-            command: start
-            content: |
-              [Unit]
-              Description=Docker pull our CoreOS toolbox
-              [Service]
-              ExecStart=/home/core/cluster.coreos.install/install.sh postinstall-coreos-toolbox
-DOCKER_PULL_TOOLBOX
-
-if [ -n "$WITH_ZFS" ]; then
-    # Installing ZFS needs to be done after reboot, or we won't have enough
-    # disk space.
-    cat <<WITH_ZFS_UNIT
-          - name: postinstall-zfs.service
-            runtime: no
-            command: start
-            content: |
-              [Unit]
-              Description=Install ZFS dependencies
-              [Service]
-              ExecStart=/home/core/cluster.coreos.install/install.sh postinstall-zfs
-WITH_ZFS_UNIT
-fi
-
-cat <<WRITE_FILES
-write_files:
-    - path: /etc/systemd/network/40-ethbr4-nogateway.opt-network
-      content: |
-        # Network configuration for ethbr4 without a default route.
-        # Overrides 50-ethbr4-internal.network on gateway nodes.
-        [Match]
-        Name=ethbr4
-
-        [Network]
-        Address=$COREOS_PRIVATE_IPV4/24
-        DNS=$DNS_VIP
-    # Redefine the default toolbox with our epflsti/cluster.coreos.toolbox
-    - path: /home/core/.toolboxrc
-      owner: core
-      content: |
-        TOOLBOX_DOCKER_IMAGE=epflsti/cluster.coreos.toolbox
-        TOOLBOX_DOCKER_TAG=latest
-    # Create a default bash_history - productivity hack
-    - path: /home/core/.bash_history
-      owner: core:core
-      content: |
-        fleetctl list-units
-        fleetctl list-machines
-        etcdctl member list
-        etcdctl cluster-health
-        journalctl -xe
-        journalctl -l
-        systemctl list-unit-files
-        systemctl cat puppet.service
-        docker exec puppet.service puppet agent -t
-    # fleetsort script - productivity hack
-    - path: /home/core/fleetcheck
-      owner: core:core
-      permissions: '0755'
-      content: |
-        fleetcheck() {
-          fleetctl list-machines | sort -n -t . -k 7,7
-          TOTAL=\$(fleetctl list-machines -no-legend | wc -l)
-          echo -e "\n         Congratulations officer, your fleet have $TOTAL members !\n"
-          echo -e "* etcd members are:\n"
-          etcdctl member list | sort -t = -k2
-          echo -e "\n* and cluster's health:\n"
-          etcdctl cluster-health
-        }
-        fleetcheck
-WRITE_FILES
-
-# Post-bootstrap, SSH keys are managed with Puppet.
-
-if [ -n "$WITH_CORE_PASSWORD" ]; then
-    cat <<USERS
-users:
-  - name: core
-    passwd: $COREOS_HASHED_CORE_PASSWORD
-USERS
-fi
-
-}
 
 #http://git-scm.com/docs/pretty-formats
 install_sh_version() {
     (cd "$(dirname "$0")" && git log -1 --format=%ci -- install.sh)
-}
-
-# Prints to stdout a *shell-escaped* snippet of the docker exec command line
-# to run Puppet
-puppet_in_docker_args() {
-    local MNT ROOT bootstraptime
-    case "$1" in
-        --bootstraptime)
-            ROOT=/mnt
-            MNT=/mnt
-            bootstraptime=1
-            ;;
-        *)
-            ROOT=/
-            MNT=
-            ;;
-    esac
-
-(
-    cat <<ARGS
-          --net=host
-          --privileged
-          -v $ROOT:/opt/root
-          -v $MNT/etc/systemd:/etc/systemd
-          -v $MNT/etc/puppet:/etc/puppet
-          -v $MNT/var/lib/puppet:/var/lib/puppet
-          -v $MNT/home/core:/home/core
-          -v $MNT/etc/os-release:/etc/os-release:ro
-          -v $MNT/etc/lsb-release:/etc/lsb-release:ro
-          -v $MNT/etc/coreos:/etc/coreos:rw
-          -v /run:/run:ro
-          -v $MNT/usr/bin/systemctl:/usr/bin/systemctl:ro
-          -v $MNT/lib64:/lib64:ro
-          -v $MNT/sys/fs/cgroup:/sys/fs/cgroup:ro
-          -v /dev/ipmi0:/dev/ipmi0
-          -e FACTER_ipaddress=$COREOS_PRIVATE_IPV4
-          -e FACTER_provision_git_id="$PROVISION_GIT_ID"
-          -e FACTER_install_sh_version="$(install_sh_version)"
-ARGS
-
-    if [ -n "$WITH_ZFS" ]; then
-        echo '-e FACTER_has_zfs=1'
-    fi
-
-    if [ -n "$bootstraptime" ]; then
-        echo "-e FACTER_lifecycle_stage=bootstrap"
-        # Make /media/staging available (the path where the to-be-rebooted-into
-        # version of CoreOS is being staged, I guess)
-        echo "-v /media/staging:/opt/staging"
-    else
-        echo "-e FACTER_lifecycle_stage=production"
-    fi
-
-    echo "epflsti/cluster.coreos.puppet:latest"
-) | tr '\n' ' '
-}
-
-postinstall_coreos_toolbox() {
-    # prepare the toolbox for direct use
-    docker pull epflsti/cluster.coreos.toolbox
-}
-
-postinstall_zfs() {
-    cd /home/core
-    # https://github.com/ClusterHQ/flocker/blob/zfs-on-coreos-tutorial-667/docs/experimental/zfs-on-coreos.rst
-    wget https://storage.googleapis.com/experiments-clusterhq/zfs-coreos/coreos-gentoo-prefix-glibc-wip.tar.xz ||true
-    wget https://storage.googleapis.com/experiments-clusterhq/zfs-coreos/coreos-gentoo-prefix-glibc-wip.tar.xz.sig
-    gpg --keyserver hkp://subkeys.pgp.net --recv-keys 'FD27D483'
-    gpg --verify coreos-gentoo-prefix-glibc-wip.tar.xz{.sig,}
-    tar xf coreos-gentoo-prefix-glibc-wip.tar.xz
-
-    # TODO: more!
 }
 
 mount_mnt() {
@@ -345,21 +83,19 @@ copy_install_sh() {
        cd /mnt/home/core; tar xpvf -)
 }
 
-install() {
-    if [ "$1" == "--zfs" ]; then WITH_ZFS=1; fi
-
-    cat_cloud_config > /home/core/cloud-config.yml
-    chown core:core /home/core/cloud-config.yml
-    chmod 600 /home/core/cloud-config.yml
-
-    # Needed before messing with partition tables etc:
+install_coreos() {
+    # If we are manually re-running a failed install, we want to umount
+    # everything before messing with partition tables:
     umount_mnt
     # Zap all volume groups, lest coreos-install fail to BLKRRPART
     # (https://github.com/coreos/bugs/issues/152)
     vgs --noheadings 2>/dev/null | awk '{ print $1}' | xargs -n 1 vgremove -f || true
 
-    /usr/bin/coreos-install -C stable -d "$COREOS_INSTALL_TO_DISK" -c /home/core/cloud-config.yml -b "$COREOS_INSTALL_URL"
+    /usr/bin/coreos-install -C stable -d "$COREOS_INSTALL_TO_DISK" -b "$COREOS_INSTALL_URL"
+}
 
+run_puppet_bootstrap() {
+    # TODO: This is still way too complex.
     mount_mnt
 
     # Load modules right away, so that Puppet may tweak IPMI
@@ -381,8 +117,23 @@ server          = $PUPPET_CONF_SERVER
 PUPPETCONF
 
     set +e -x
-    docker rm puppet-bootstrap || true
-    eval "docker run --name puppet-bootstrap $(puppet_in_docker_args --bootstraptime) agent -t"
+    docker rm -f puppet-bootstrap.service || true
+    docker run --name puppet-bootstrap.service \
+           --net=host --privileged \
+           -v /mnt:/opt/root \
+           -v /mnt/etc/systemd:/etc/systemd \
+           -v /mnt/etc/puppet:/etc/puppet \
+           -v /mnt/var/lib/puppet:/var/lib/puppet \
+           -v /mnt/usr/bin/systemctl:/usr/bin/systemctl:ro \
+           -v /mnt/lib64:/lib64:ro \
+           -v /mnt/usr/lib64/systemd:/usr/lib64/systemd \
+           -v /mnt/usr/lib/systemd:/usr/lib/systemd \
+           -e FACTER_ipaddress=$COREOS_PRIVATE_IPV4 \
+           -e FACTER_primary_interface=$COREOS_PRIMARY_NETWORK_INTERFACE \
+           -e FACTER_lifecycle_stage=bootstrap \
+           epflsti/cluster.coreos.puppet:latest \
+           agent --test
+    
     exitcode=$?
     case "$exitcode" in
         0|2) : ;;
@@ -390,57 +141,27 @@ PUPPETCONF
            exit $exitcode ;;
     esac
     set -e -x
-
-    # Create this file before next reboot to simplify post-reboot bootstrap
-    mkdir -p /mnt/etc/modules-load.d
-    cat >> /mnt/etc/modules-load.d/ipmi.conf <<"IPMI_CONF"
-# Load IPMI modules
-ipmi_si
-ipmi_devintf
-IPMI_CONF
-
-    copy_install_sh
-
-    # All done
-    umount_mnt
-    wget -q -O /dev/null --no-check-certificate $PROVISIONING_DONE_URL
 }
 
 while [ -n "$1" ]; do case "$1" in
-    test-puppet-in-docker-args)
-        # For debug
-        eval "for i in $(puppet_in_docker_args); do echo ___ \$i ___; done"
-        shift ;;
-    cat-cloud-config)
-        # For debug
-        cat_cloud_config
-        shift ;;
-
-    with-core-password)
-        WITH_CORE_PASSWORD=1
-        shift ;;
     mount)
         mount_mnt
+        shift ;;
+    install)
+        install_coreos
+        run_puppet_bootstrap
         shift ;;
     umount)
         umount_mnt
         shift ;;
+    foreman-built)
+        wget -q -O /dev/null --no-check-certificate "$PROVISIONING_DONE_URL"
+        ;;
     reboot)
         reboot
         shift ;;
 
-    # Production verbs
-    install)
-        case "$2" in
-            --*) install "$2" ; shift ; shift ;;
-            *) install ; shift ;;
-        esac ;;
-    postinstall-coreos-toolbox)
-        postinstall_coreos_toolbox
-        shift ;;
-    postinstall-zfs)
-        postinstall_zfs
-        shift ;;
+
     *)
         set +x
         echo >&2 "Unknown verb: $1"

@@ -146,23 +146,23 @@ while [ -n "$1" ]; do case "$1" in
     mount)
         mount_mnt
         shift ;;
-    install-auto)
-        install_coreos
-        run_puppet_bootstrap
+    umount)
         umount_mnt
-        foreman_built
-        reboot
         shift ;;
     puppet)
         run_puppet_bootstrap
-        shift ;;
-    umount)
-        umount_mnt
         shift ;;
     foreman-built)
         foreman_built
         shift ;;
     reboot)
+        reboot
+        shift ;;
+    install-auto)
+        install_coreos
+        run_puppet_bootstrap
+        umount_mnt
+        foreman_built
         reboot
         shift ;;
 

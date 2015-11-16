@@ -153,7 +153,7 @@ while [ -n "$1" ]; do case "$1" in
         shift ;;
     foreman-built)
         wget -q -O /dev/null --no-check-certificate "$PROVISIONING_DONE_URL"
-        ;;
+        shift ;;
     reboot)
         reboot
         shift ;;

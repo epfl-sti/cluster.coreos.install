@@ -65,9 +65,21 @@ install_sh_version() {
     (cd "$(dirname "$0")" && git log -1 --format=%ci -- install.sh)
 }
 
+_mount_retry() {
+    for attempt in $(seq 1 3); do
+        mountpoint "$2" >/dev/null 2>&1 && return
+        mount "$@"
+        # Weird bug: mount sometimes succeeds without actually mounting!
+        mountpoint "$2" >/dev/null 2>&1 && return
+        sleep 5
+    done
+    echo >&2 "Keep failing to mount $2, bailing out!"
+    exit 2
+}
+
 mount_mnt() {
-    if ! mountpoint /mnt >/dev/null 2>&1 ; then mount LABEL=ROOT /mnt; fi
-    if ! mountpoint /mnt/usr >/dev/null 2>&1; then mount LABEL=USR-A /mnt/usr -o ro; fi
+    _mount_retry LABEL=ROOT /mnt
+    _mount_retry LABEL=USR-A /mnt/usr -o ro
 }
 
 umount_mnt() {

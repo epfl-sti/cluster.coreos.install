@@ -114,6 +114,9 @@ PUPPETCONF
 
     set +e -x
     docker rm -f puppet-bootstrap.service || true
+    # This is very similar to the ExecStart of templates/puppet.service.erb
+    # in epflsti/cluster.coreos.puppet, so that the same Puppet code may run
+    # at both bootstrap and production stages.
     docker run --name puppet-bootstrap.service \
            --net=host --privileged \
            -v /mnt:/opt/root \

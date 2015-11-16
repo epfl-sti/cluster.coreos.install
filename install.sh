@@ -39,9 +39,6 @@
 #    to $(hostname -f)
 #  COREOS_PRIVATE_IPV4
 #    As it says on the tin
-#  COREOS_PRIMARY_NETWORK_INTERFACE
-#    The CoreOS-style name of the primary network interface, e.g.
-#    enp1s0f0 or some such
 #  COREOS_INSTALL_TO_DISK
 #    The disk that the install-and-reboot verb should install to (/dev/sda by
 #    default)
@@ -126,8 +123,9 @@ PUPPETCONF
            -v /mnt/usr/lib64/systemd:/usr/lib64/systemd \
            -v /mnt/usr/lib/systemd:/usr/lib/systemd \
            -e FACTER_ipaddress=$COREOS_PRIVATE_IPV4 \
-           -e FACTER_primary_interface=$COREOS_PRIMARY_NETWORK_INTERFACE \
            -e FACTER_lifecycle_stage=bootstrap \
+           -e FACTER_provision_git_id=$PROVISION_GIT_ID \
+           -e FACTER_install_sh_version="$(install_sh_version)" \
            epflsti/cluster.coreos.puppet:latest \
            agent --test
     

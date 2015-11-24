@@ -104,8 +104,10 @@ run_puppet_bootstrap() {
     mount_mnt
 
     mkdir -p /mnt/etc/puppet
+    # We need to talk to the Puppet master for the first time.
+    # Note that templates/puppet.conf.erb will basically overwrite this.
     cat >> /mnt/etc/puppet/puppet.conf <<PUPPETCONF
-# My default puppet.conf file
+# Bootstrap-time puppet.conf file; will be overridden
 [agent]
 pluginsync      = true
 report          = true

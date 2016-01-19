@@ -167,6 +167,9 @@ while [ -n "$1" ]; do case "$1" in
     umount)
         umount_mnt
         shift ;;
+    puppetclean)
+        rm -rf /mnt/var/lib/puppet/lib/
+        shift ;;
     puppet)
         run_puppet_bootstrap
         shift ;;

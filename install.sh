@@ -56,6 +56,10 @@
 
 set -e -x
 
+if [ -f "/etc/bootstrap-environmnent" ]; then
+    eval "$(sed "s/\(.*\)=\(.*\)/: \${\1:='\2'}/g" < /etc/bootstrap-environment)"
+fi
+
 : ${COREOS_FQDN:=$(hostname -f)}
 : ${COREOS_INSTALL_TO_DISK:=/dev/sda}
 : ${COREOS_INSTALL_URL:=http://stable.release.core-os.net/amd64-usr}

@@ -137,6 +137,7 @@ PUPPETCONF
            -v /mnt/var/lib/puppet:/var/lib/puppet \
            -v /home/core:/home/core \
            -v /mnt/usr/bin/systemctl:/usr/bin/systemctl:ro \
+           -v /mnt/lib64:/lib64:ro \
            -v /mnt/usr/lib64/systemd:/usr/lib64/systemd \
            -v /mnt/usr/lib/systemd:/usr/lib/systemd \
            -e FACTER_ipaddress=$COREOS_PRIVATE_IPV4 \

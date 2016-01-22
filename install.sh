@@ -4,8 +4,7 @@
 #
 # Usage examples:
 #
-# install.sh install-and-reboot
-# install.sh postinstall
+# install.sh install-auto
 #
 # Workflow:
 #

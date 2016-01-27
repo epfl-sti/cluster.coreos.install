@@ -103,7 +103,6 @@ install_coreos() {
 }
 
 run_puppet_bootstrap() {
-    # TODO: This is still way too complex.
     mount_mnt
 
     mkdir -p /mnt/etc/puppet

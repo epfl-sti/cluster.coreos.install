@@ -68,26 +68,21 @@ install_sh_version() {
     (cd "$(dirname "$0")" && git log -1 --format=%ci -- install.sh)
 }
 
-_mount_retry() {
-    for attempt in $(seq 1 3); do
-        mountpoint "$2" >/dev/null 2>&1 && return
-        mount "$@"
-        # Weird bug: mount sometimes succeeds without actually mounting!
-        mountpoint "$2" >/dev/null 2>&1 && return
-        sleep 5
-    done
-    echo >&2 "Keep failing to mount $2, bailing out!"
-    exit 2
+ensure_fstab_exists() {
+    [ -f "/etc/fstab"] && return
+    echo "LABEL=ROOT	/mnt		ext4 defaults 1 1" > /etc/fstab
+    echo "LABEL=USR-A	/mnt/usr	ext4 defaults 1 1" >> /etc/fstab
+    systemctl daemon-reload
 }
 
 mount_mnt() {
-    _mount_retry LABEL=ROOT /mnt
-    _mount_retry LABEL=USR-A /mnt/usr -o ro
+    ensure_fstab_exists
+    systemctl start mnt-usr.mount
 }
 
 umount_mnt() {
-    if mountpoint /mnt/usr >/dev/null 2>&1; then umount /mnt/usr; fi
-    if mountpoint /mnt >/dev/null 2>&1; then umount /mnt; fi
+    ensure_fstab_exists
+    systemctl stop mnt.mount
 }
 
 install_coreos() {

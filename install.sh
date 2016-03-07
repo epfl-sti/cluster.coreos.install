@@ -69,7 +69,7 @@ install_sh_version() {
 }
 
 ensure_fstab_exists() {
-    [ -f "/etc/fstab"] && return
+    [ -f "/etc/fstab" ] && return
     echo "LABEL=ROOT	/mnt		ext4 defaults 1 1" > /etc/fstab
     echo "LABEL=USR-A	/mnt/usr	ext4 ro 1 1" >> /etc/fstab
     systemctl daemon-reload
@@ -77,7 +77,12 @@ ensure_fstab_exists() {
 
 mount_mnt() {
     ensure_fstab_exists
-    systemctl start mnt-usr.mount
+    local error
+    for attempt in $(seq 1 6); do
+        if systemctl start mnt-usr.mount; then return; else error=$?; fi
+        sleep 10
+    done
+    exit $?
 }
 
 umount_mnt() {

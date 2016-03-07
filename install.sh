@@ -71,7 +71,7 @@ install_sh_version() {
 ensure_fstab_exists() {
     [ -f "/etc/fstab"] && return
     echo "LABEL=ROOT	/mnt		ext4 defaults 1 1" > /etc/fstab
-    echo "LABEL=USR-A	/mnt/usr	ext4 defaults 1 1" >> /etc/fstab
+    echo "LABEL=USR-A	/mnt/usr	ext4 ro 1 1" >> /etc/fstab
     systemctl daemon-reload
 }
 

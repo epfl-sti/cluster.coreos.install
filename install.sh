@@ -177,6 +177,12 @@ while [ -n "$1" ]; do case "$1" in
     reboot)
         reboot
         shift ;;
+    install-and-wait)
+        install_coreos
+        run_puppet_bootstrap
+        umount_mnt
+        shift ;;
+
     install-auto)
         install_coreos
         run_puppet_bootstrap

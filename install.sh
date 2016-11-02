@@ -56,7 +56,7 @@
 set -e -x
 
 if [ -f "/etc/bootstrap-environment" ]; then
-    eval "$(sed "s/\(.*\)=\(.*\)/: \${\1:='\2'}/g" < /etc/bootstrap-environment)"
+    eval "$(sed "s/\([^=]*\)=\(.*\)/: \${\1:='\2'}/g" < /etc/bootstrap-environment)"
 fi
 
 : ${COREOS_FQDN:=$(hostname -f)}

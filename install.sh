@@ -88,6 +88,9 @@ mount_mnt() {
 umount_mnt() {
     ensure_fstab_exists
     systemctl stop mnt.mount
+    # Modern kernels appear to re-run udev as soon as the partition table sectors change (e.g., from coreos-install):
+    rm /etc/fstab /run/systemd/generator/mnt.mount /run/systemd/generator/mnt-usr.mount
+    systemctl daemon-reload
 }
 
 install_coreos() {

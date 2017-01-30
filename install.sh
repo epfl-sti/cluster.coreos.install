@@ -136,7 +136,7 @@ PUPPETCONF
            -v /mnt/etc/systemd:/etc/systemd \
            -v /mnt/etc/puppet:/etc/puppet \
            -v /mnt/var/lib/puppet:/var/lib/puppet \
-           -v /mnt/var/run:/var/run \
+           -v /run/systemd:/run/systemd \
            -v /home/core:/home/core \
            -v /mnt/usr/bin/systemctl:/usr/bin/systemctl:ro \
            -v /mnt/lib64:/lib64:ro \
